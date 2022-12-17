@@ -119,6 +119,31 @@ var_index[idx] = name # Add the name to the dictionary
 for i in range(len(var_index)):
 print(i, var_index[i], coeff[i])
 
+sdf.select([count(when(isnan(c) | col(c).isNull(), c)).alias(c) for c in ["star_rating",
+"review_body"]] ).show()
+sdf.select([count(when(col(c).isNull(), c)).alias(c) for c in ["review_date"]] ).show()
 
+sdf = sdf.na.drop(subset=["star_rating", "review_body", "review_date"])
 
+sdf = sdf.withColumn("review_year", year(col("review_date")))
+sdf = sdf.withColumn("review_month", month(col("review_date")))
+sdf = sdf.withColumn("review_yearmonth", date_format(col("review_date"), "yyyy-MM"))
 
+sdf = sdf.withColumn('review_body_wordcount', size(split(col('review_body'), ' ')))
+
+sdf.count()
+
+sdf.select("star_rating","helpful_votes","total_votes").summary("count", "min", "max", "mean").show()
+import matplotlib.pyplot as plt
+
+df = sdf.where(col("review_year") > 2012).groupby("review_yearmonth") \
+.count().sort("review_yearmonth").toPandas()
+
+fig = plt.figure()
+plt.bar(df['review_yearmonth'], df['count'])
+plt.xlabel("Year-Month")
+plt.ylabel("Number of Reviews")
+plt.title("Number of Reviews by Year and Month")
+plt.xticks(rotation=90, ha='right')
+fig.tight_layout()
+plt.savefig("review_count_by_year_month_matplotlib.png")
